@@ -16,13 +16,15 @@ from qgis.core import (
     QgsDataProvider,
     QgsVectorDataProvider,
     QgsRectangle,
-    QgsFeatureIterator
+    QgsFeatureIterator,
+    QgsLogger
 )
 
 from django.apps import apps
 from django.contrib.gis.db import models
 
 from .source import DjangoFeatureSource
+
 
 wkb_types = {
     models.PointField: QgsWkbTypes.Point,
@@ -53,6 +55,7 @@ class DjangoProvider(QgsVectorDataProvider):
         :param uri: <app>.<model>[?geofield=<name>]
         :param providerOptions:
         """
+        QgsLogger.debug('DjangoProvider.__init__ uri={} options={}'.format(uri, providerOptions), 3)
         super().__init__(uri)
         self._is_valid = False
         self.setNativeTypes((
@@ -105,7 +108,8 @@ class DjangoProvider(QgsVectorDataProvider):
         self._is_valid = True
 
     def featureSource(self):
-        return DjangoFeatureSource(self._model, self._qgis_fields, self._django_fields, self._geo_field, self._crs)
+        source = DjangoFeatureSource(self._model, self._qgis_fields, self._django_fields, self._geo_field, self._crs, self._is_valid)
+        return source
 
     def dataSourceUri(self, expandAuthConfig=True):
         return self._uri
@@ -114,7 +118,8 @@ class DjangoProvider(QgsVectorDataProvider):
         return "Django"
 
     def getFeatures(self, request=QgsFeatureRequest()):
-        return QgsFeatureIterator(self.featureSource().getFeatures(request))
+        iterator = self.featureSource().getFeatures(request)
+        return iterator
 
     def uniqueValues(self, fieldIndex, limit=-1):
         if fieldIndex < 0 or fieldIndex >= self.fields().count():
@@ -127,10 +132,14 @@ class DjangoProvider(QgsVectorDataProvider):
         return set(values)
 
     def wkbType(self):
+        # QgsLogger.debug('DjangoProvider.wkbType() = {}'.format(self._wkbType), 0)
         return self._wkbType
 
     def featureCount(self):
-        return self._model.objects.get_queryset().count()
+        if self.isValid():
+            return self._model.objects.get_queryset().count()
+        else:
+            return 0
 
     def fields(self):
         return self._qgis_fields
@@ -192,12 +201,9 @@ class DjangoProvider(QgsVectorDataProvider):
         return self.providerKey()
 
     def extent(self):
-        # TODO
-        return QgsRectangle(-20037508.34, -20037508.34, 20037508.34, 20037508.34)
         if self._extent.isEmpty() and self._geo_field:
             box = list(self._model.objects.get_queryset().aggregate(models.Extent(self._geo_field_name)).values())[0]
-            self._extent = QgsRectangle(box[0], box[0], box[0], box[0])
-
+            self._extent = QgsRectangle(box[0], box[1], box[2], box[3])
         return QgsRectangle(self._extent)
 
     def updateExtents(self):
@@ -219,8 +225,11 @@ class DjangoProvider(QgsVectorDataProvider):
         # IS it OK to take class name?
         name = django_field.name
         type_name = type(django_field).__name__.replace('Field', '').lower()
-        comment = django_field.verbose_name
-        # boolean
+        if isinstance(django_field, models.Field):
+            comment = str(django_field.verbose_name)
+        else:
+            comment = ''
+            # boolean
         if isinstance(django_field, models.BooleanField):
             return QgsField(name, QVariant.Bool, type_name, -1, -1, comment)
         elif isinstance(django_field, models.NullBooleanField):
@@ -251,3 +260,4 @@ class DjangoProvider(QgsVectorDataProvider):
             return QgsField(name, QVariant.DateTime, type_name, -1, -1, comment)
 
         return None
+

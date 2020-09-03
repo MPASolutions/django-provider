@@ -5,6 +5,7 @@ from qgis.core import (
     QgsCsException,
     QgsGeometry,
     QgsFeature,
+    QgsLogger,
 )
 
 from django.db.models import Q
@@ -13,10 +14,12 @@ from django.contrib.gis.geos import Polygon
 
 class DjangoFeatureIterator(QgsAbstractFeatureIterator):
 
-    def __init__(self, source, request):
+    def __init__(self, source, request, is_valid):
+        QgsLogger.debug('DjangoFeatureIterator.__init__ source = {}'.format(source), 5)
         super().__init__(request)
         self._request = request if request is not None else QgsFeatureRequest()
         self._source = source
+        self._is_valid = is_valid
         self._transform = QgsCoordinateTransform()
         if self._request.destinationCrs().isValid() and self._request.destinationCrs() != self._source.crs:
             self._transform = QgsCoordinateTransform(self._source.crs, self._request.destinationCrs(),
@@ -51,7 +54,11 @@ class DjangoFeatureIterator(QgsAbstractFeatureIterator):
 
         # TODO: attributes subset
 
+    def isValid(self):
+        return self._is_valid
+
     def fetchFeature(self, feature):
+        QgsLogger.debug('DjangoFeatureIterator.fetchFeature feature = {}'.format(feature), 0)
         try:
             obj = next(self._iterator)
             feature.setId(obj.pk)  # Only integers supported
