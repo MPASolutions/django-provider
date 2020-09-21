@@ -14,10 +14,11 @@ from django.contrib.gis.geos import Polygon
 
 class DjangoFeatureIterator(QgsAbstractFeatureIterator):
 
-    def __init__(self, source, request, is_valid):
+    def __init__(self, provider, source, request, is_valid):
         QgsLogger.debug('DjangoFeatureIterator.__init__ source = {}'.format(source), 5)
         super().__init__(request)
         self._request = request if request is not None else QgsFeatureRequest()
+        self._provider = provider
         self._source = source
         self._is_valid = is_valid
         self._transform = QgsCoordinateTransform()
@@ -33,7 +34,8 @@ class DjangoFeatureIterator(QgsAbstractFeatureIterator):
             self.close()
             return
 
-        self._queryset = self._source.model.objects.get_queryset().order_by(self._source.model._meta.pk.name)
+        # self._queryset = self._source.model.objects.get_queryset().order_by(self._source.model._meta.pk.name)
+        self._queryset = self._provider.get_queryset()
         if self._filter_geo and self._source.dj_geo_field:
             if self._request.flags() & QgsFeatureRequest.ExactIntersect:
                 # TODO

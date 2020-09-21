@@ -58,6 +58,7 @@ class DjangoProvider(QgsVectorDataProvider):
         QgsLogger.debug('DjangoProvider.__init__ uri={} options={}'.format(uri, providerOptions), 3)
         super().__init__(uri)
         self._is_valid = False
+        self._queryset = None
         self.setNativeTypes((
             # TODO
             QgsVectorDataProvider.NativeType('Integer', 'integer', QVariant.Int, -1, -1, 0, 0),
@@ -111,7 +112,7 @@ class DjangoProvider(QgsVectorDataProvider):
         self._is_valid = True
 
     def featureSource(self):
-        source = DjangoFeatureSource(self._model, self._qgis_fields, self._django_fields, self._geo_field, self._crs, self._is_valid)
+        source = DjangoFeatureSource(self, self._model, self._qgis_fields, self._django_fields, self._geo_field, self._crs, self._is_valid)
         return source
 
     def dataSourceUri(self, expandAuthConfig=True):
@@ -217,6 +218,20 @@ class DjangoProvider(QgsVectorDataProvider):
 
     def crs(self):
         return self._crs
+
+    # ---------------------------------------------------------------------------------
+
+    def get_queryset(self):
+        if self.isValid():
+            if self._queryset:
+                return self._queryset
+            else:
+                return self._model.objects.get_queryset().order_by(self._model._meta.pk.name)
+        else:
+            return None
+
+    def set_queryset(self, queryset):
+        self._queryset = queryset
 
     # -------------------------------- Private methods --------------------------------
 
