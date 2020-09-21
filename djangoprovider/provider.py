@@ -75,11 +75,14 @@ class DjangoProvider(QgsVectorDataProvider):
         self._django_fields = []  # Django fields represented by provider in the same order as QgsFields
         for django_field in self._meta.get_fields():
             # TODO: more field types
-            qgis_field = self._get_qgis_field_from_django_field(django_field)
+            qgis_fields = self._get_qgis_field_from_django_field(django_field)
 
-            if qgis_field:
-                self._qgis_fields.append(qgis_field)
-                self._django_fields.append(django_field)
+            if qgis_fields:
+                if not isinstance(qgis_fields, list):
+                    qgis_fields = [qgis_fields]
+                for qgis_field in qgis_fields:
+                    self._qgis_fields.append(qgis_field)
+                    self._django_fields.append(django_field)
 
         self._geo_field_name = url_query.queryItemValue('geofield')
         self._geo_field = None  # Django geometry field
@@ -258,6 +261,17 @@ class DjangoProvider(QgsVectorDataProvider):
             return QgsField(name, QVariant.Time, type_name, -1, -1, comment)
         elif isinstance(django_field, models.DateTimeField):
             return QgsField(name, QVariant.DateTime, type_name, -1, -1, comment)
+
+        elif isinstance(django_field, models.DateTimeField):
+            return QgsField(name, QVariant.DateTime, type_name, -1, -1, comment)
+
+        elif isinstance(django_field, models.ForeignKey):
+            return [
+                # TODO: what QVariant to use for Django model or how to register it as custom type in Python
+                QgsField(name, QVariant.String, type_name, -1, -1, comment),
+                # TODO: support other types
+                QgsField(django_field.get_attname(), QVariant.Int, 'int', -1, -1, '{} ID'.format(comment)),
+            ]
 
         return None
 
