@@ -52,7 +52,7 @@ class DjangoProvider(QgsVectorDataProvider):
 
     def __init__(self, uri='', providerOptions=QgsDataProvider.ProviderOptions()):
         """
-        :param uri: <app>.<model>[?geofield=<name>]
+        :param uri: <app>.<model>[?geofield=<name>][&fields=<field name>=<Django type name>,<field name>=<Django type name>,...]
         :param providerOptions:
         """
         QgsLogger.debug('DjangoProvider.__init__ uri={} options={}'.format(uri, providerOptions), 3)
@@ -72,9 +72,22 @@ class DjangoProvider(QgsVectorDataProvider):
         self._model = apps.get_model(self._app_label, self._model_name)  # Django model
         self._meta = self._model._meta
 
+        all_django_fields = list(self._meta.get_fields())
+
+        # add extra field which may be added for example as annotation in queryset
+        extra_fields = url_query.queryItemValue('fields')
+        if extra_fields:
+            extra_fields = extra_fields.split(',')
+            for extra_field in extra_fields:
+                field_name, field_type = extra_field.split('=')
+                django_field_class = getattr(models, field_type)
+                # print('django_field_class = {}'.format(django_field_class))
+                django_field = django_field_class(name=field_name, verbose_name=field_name)
+                all_django_fields.append(django_field)
+
         self._qgis_fields = QgsFields()
         self._django_fields = []  # Django fields represented by provider in the same order as QgsFields
-        for django_field in self._meta.get_fields():
+        for django_field in all_django_fields:
             # TODO: more field types
             qgis_fields = self._get_qgis_field_from_django_field(django_field)
 
@@ -241,6 +254,7 @@ class DjangoProvider(QgsVectorDataProvider):
     @staticmethod
     def _get_qgis_field_from_django_field(django_field):
         # IS it OK to take class name?
+        # print('django_field = {}'.format(django_field))
         name = django_field.name
         type_name = type(django_field).__name__.replace('Field', '').lower()
         if isinstance(django_field, models.Field):
@@ -266,7 +280,10 @@ class DjangoProvider(QgsVectorDataProvider):
             return QgsField(name, QVariant.Double, type_name, django_field.max_digits, django_field.decimal_places, comment)
         # char
         elif isinstance(django_field, models.CharField):
-            return QgsField(name, QVariant.String, type_name, django_field.max_length, -1, comment)
+            max_length = django_field.max_length
+            if not max_length:
+                max_length = 256
+            return QgsField(name, QVariant.String, type_name, max_length, -1, comment)
         elif isinstance(django_field, models.TextField):
             return QgsField(name, QVariant.String, type_name, -1, -1, comment)
         # datetime
