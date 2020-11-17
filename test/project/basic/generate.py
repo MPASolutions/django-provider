@@ -2,9 +2,7 @@ import random, string, sys, datetime
 
 from django.utils import timezone
 from django.contrib.gis import geos
-
-from .models import *
-
+from basic.models import (FK, M2M, BaseModel, Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon)
 
 def generate_data(model, count):
     """

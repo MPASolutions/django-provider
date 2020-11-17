@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.gis.geos import Point
 
-from basic.models import *
+from basic.models import (FK, M2M, BaseModel, Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon)
 from basic.generate import generate_data
 
 

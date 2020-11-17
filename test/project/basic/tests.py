@@ -19,8 +19,10 @@ qgs = QgsApplication([], False)
 qgs.initQgis()
 
 from django.test import TestCase
-from .models import *
-from .generate import generate_data
+from basic.models import (FK, M2M, BaseModel, Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon)
+
+
+from basic.generate import generate_data
 
 # from ....djangoprovider.provider import DjangoProvider  # doesn't work in python3
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
