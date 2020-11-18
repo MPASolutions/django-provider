@@ -47,13 +47,14 @@ class DjangoProvider(QgsVectorDataProvider):
         return 'Django vector provider'
 
     @classmethod
-    def createProvider(cls, uri, providerOptions):
-        return DjangoProvider(uri, providerOptions)
+    def createProvider(cls, uri, providerOptions, flags):  # flags since QGIS 3.16
+        return DjangoProvider(uri, providerOptions, flags)
 
-    def __init__(self, uri='', providerOptions=QgsDataProvider.ProviderOptions()):
+    def __init__(self, uri='', providerOptions=QgsDataProvider.ProviderOptions(), flags=QgsDataProvider.ReadFlags()):  # flags since QGIS 3.16
         """
         :param uri: <app>.<model>[?geofield=<name>][&fields=<field name>=<Django type name>,<field name>=<Django type name>,...]
         :param providerOptions:
+        :param flags
         """
         QgsLogger.debug('DjangoProvider.__init__ uri={} options={}'.format(uri, providerOptions), 3)
         super().__init__(uri)
