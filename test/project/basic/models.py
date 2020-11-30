@@ -21,7 +21,7 @@ class BaseModel(models.Model):
     Abstract base class with the same set of fields
     """
     boolean_field = models.BooleanField()
-    null_boolean_field = models.NullBooleanField(blank=True, null=True)
+    null_boolean_field = models.BooleanField(blank=True, null=True)
     small_integer_field = models.SmallIntegerField(blank=True, null=True, verbose_name="Small Integer")
     integer_field = models.IntegerField(blank=True, null=True, verbose_name="Integer")
     float_field = models.FloatField(blank=True, null=True, verbose_name='Float')
