@@ -237,7 +237,7 @@ class DjangoProvider(QgsVectorDataProvider):
 
     def get_queryset(self):
         if self.isValid():
-            if self._queryset:
+            if self._queryset is not None:  # may be empty
                 return self._queryset
             else:
                 return self._model.objects.get_queryset().order_by(self._model._meta.pk.name)
