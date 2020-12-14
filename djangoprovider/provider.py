@@ -75,16 +75,27 @@ class DjangoProvider(QgsVectorDataProvider):
 
         all_django_fields = list(self._meta.get_fields())
 
+        # Existing ForeignKey forced to load as related object text representation
+        self._forced_field_names = []
+
         # add extra field which may be added for example as annotation in queryset
+        # Extra field can be:
+        #    <name>=<type>: e.g. my_field=CharField, type is Django field name, used for example for annotations
+        #    <name>: simply existing ForeignKey forced to load as text
+        # example:
+        #    fields=my_annotation=CharField,some_fk
         extra_fields = url_query.queryItemValue('fields')
         if extra_fields:
             extra_fields = extra_fields.split(',')
             for extra_field in extra_fields:
-                field_name, field_type = extra_field.split('=')
-                django_field_class = getattr(models, field_type)
-                # print('django_field_class = {}'.format(django_field_class))
-                django_field = django_field_class(name=field_name, verbose_name=field_name)
-                all_django_fields.append(django_field)
+                if '=' in extra_field:
+                    field_name, field_type = extra_field.split('=')
+                    django_field_class = getattr(models, field_type)
+                    # print('django_field_class = {}'.format(django_field_class))
+                    django_field = django_field_class(name=field_name, verbose_name=field_name)
+                    all_django_fields.append(django_field)
+                else:
+                    self._forced_field_names.append(extra_field)
 
         self._qgis_fields = QgsFields()
         self._django_fields = []  # Django fields represented by provider in the same order as QgsFields
@@ -252,8 +263,7 @@ class DjangoProvider(QgsVectorDataProvider):
     def _get_django_field(self, field_index):
         return self._django_fields[field_index]
 
-    @staticmethod
-    def _get_qgis_field_from_django_field(django_field):
+    def _get_qgis_field_from_django_field(self, django_field):
         # IS it OK to take class name?
         # print('django_field = {}'.format(django_field))
         name = django_field.name
@@ -299,12 +309,14 @@ class DjangoProvider(QgsVectorDataProvider):
             return QgsField(name, QVariant.DateTime, type_name, -1, -1, comment)
 
         elif isinstance(django_field, models.ForeignKey):
-            return [
-                # TODO: what QVariant to use for Django model or how to register it as custom type in Python
-                QgsField(name, QVariant.String, type_name, -1, -1, comment),
+            fields = [
                 # TODO: support other types
                 QgsField(django_field.get_attname(), QVariant.Int, 'int', -1, -1, '{} ID'.format(comment)),
             ]
-
+            # TODO: what QVariant to use for Django model or how to register it as custom type in Python
+            # Disabled by default because loading all related objects to get text representation is too heavy.
+            if name in self._forced_field_names:
+                fields.append(QgsField(name, QVariant.String, type_name, -1, -1, comment))
+            return fields
         return None
 

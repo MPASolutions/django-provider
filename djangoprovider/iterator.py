@@ -9,6 +9,7 @@ from qgis.core import (
 )
 
 from django.db.models import Q
+from django.contrib.gis.db.models import Model
 from django.contrib.gis.geos import Polygon
 
 
@@ -78,6 +79,8 @@ class DjangoFeatureIterator(QgsAbstractFeatureIterator):
             # TODO: attributes subset
             for idx, qgs_field in enumerate(self._source.qgs_fields):
                 value = getattr(obj, qgs_field.name())  # field names are the same
+                if isinstance(value, Model):  # ForeignKey target instance
+                    value = str(value)
                 # TODO: value conversion required?
                 feature.setAttribute( idx, value )
             feature.setValid(True)
